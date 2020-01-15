@@ -19,7 +19,7 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
-	"github.com/boltdb/bolt"
+	"github.com/lujin123/bolt"
 )
 
 var (
@@ -69,6 +69,14 @@ func main() {
 	}
 }
 
+func fprintln(w io.Writer, args ...interface{}) {
+	_, _ = fmt.Fprintln(w, args...)
+}
+
+func fprintf(w io.Writer, format string, args ...interface{}) {
+	_, _ = fmt.Fprintf(w, format, args...)
+}
+
 // Main represents the main program execution.
 type Main struct {
 	Stdin  io.Reader
@@ -89,14 +97,14 @@ func NewMain() *Main {
 func (m *Main) Run(args ...string) error {
 	// Require a command at the beginning.
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		fmt.Fprintln(m.Stderr, m.Usage())
+		fprintln(m.Stderr, m.Usage())
 		return ErrUsage
 	}
 
 	// Execute command.
 	switch args[0] {
 	case "help":
-		fmt.Fprintln(m.Stderr, m.Usage())
+		fprintln(m.Stderr, m.Usage())
 		return ErrUsage
 	case "bench":
 		return newBenchCommand(m).Run(args[1:]...)
@@ -166,7 +174,7 @@ func (cmd *CheckCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -196,19 +204,19 @@ func (cmd *CheckCommand) Run(args ...string) error {
 				if !ok {
 					break loop
 				}
-				fmt.Fprintln(cmd.Stdout, err)
+				fprintln(cmd.Stdout, err)
 				count++
 			}
 		}
 
 		// Print summary of errors.
 		if count > 0 {
-			fmt.Fprintf(cmd.Stdout, "%d errors found\n", count)
+			fprintf(cmd.Stdout, "%d errors found\n", count)
 			return ErrCorrupt
 		}
 
 		// Notify user that database is valid.
-		fmt.Fprintln(cmd.Stdout, "OK")
+		fprintln(cmd.Stdout, "OK")
 		return nil
 	})
 }
@@ -251,7 +259,7 @@ func (cmd *InfoCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -272,7 +280,7 @@ func (cmd *InfoCommand) Run(args ...string) error {
 
 	// Print basic database info.
 	info := db.Info()
-	fmt.Fprintf(cmd.Stdout, "Page Size: %d\n", info.PageSize)
+	fprintf(cmd.Stdout, "Page Size: %d\n", info.PageSize)
 
 	return nil
 }
@@ -310,7 +318,7 @@ func (cmd *DumpCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -347,7 +355,7 @@ func (cmd *DumpCommand) Run(args ...string) error {
 	for i, pageID := range pageIDs {
 		// Print a separator.
 		if i > 0 {
-			fmt.Fprintln(cmd.Stdout, "===============================================")
+			fprintln(cmd.Stdout, "===============================================")
 		}
 
 		// Print page to stdout.
@@ -378,17 +386,17 @@ func (cmd *DumpCommand) PrintPage(w io.Writer, r io.ReaderAt, pageID int, pageSi
 	for offset := 0; offset < pageSize; offset += bytesPerLineN {
 		// Retrieve current 16-byte line.
 		line := buf[offset : offset+bytesPerLineN]
-		isLastLine := (offset == (pageSize - bytesPerLineN))
+		isLastLine := offset == (pageSize - bytesPerLineN)
 
 		// If it's the same as the previous line then print a skip.
 		if bytes.Equal(line, prev) && !isLastLine {
 			if !skipped {
-				fmt.Fprintf(w, "%07x *\n", addr+offset)
+				fprintf(w, "%07x *\n", addr+offset)
 				skipped = true
 			}
 		} else {
 			// Print line as hexadecimal in 2-byte groups.
-			fmt.Fprintf(w, "%07x %04x %04x %04x %04x %04x %04x %04x %04x\n", addr+offset,
+			fprintf(w, "%07x %04x %04x %04x %04x %04x %04x %04x %04x\n", addr+offset,
 				line[0:2], line[2:4], line[4:6], line[6:8],
 				line[8:10], line[10:12], line[12:14], line[14:16],
 			)
@@ -399,7 +407,7 @@ func (cmd *DumpCommand) PrintPage(w io.Writer, r io.ReaderAt, pageID int, pageSi
 		// Save the previous line.
 		prev = line
 	}
-	fmt.Fprint(w, "\n")
+	fprintln(w)
 
 	return nil
 }
@@ -437,7 +445,7 @@ func (cmd *PageCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -468,7 +476,7 @@ func (cmd *PageCommand) Run(args ...string) error {
 	for i, pageID := range pageIDs {
 		// Print a separator.
 		if i > 0 {
-			fmt.Fprintln(cmd.Stdout, "===============================================")
+			fprintln(cmd.Stdout, "===============================================")
 		}
 
 		// Retrieve page info and page size.
@@ -478,9 +486,9 @@ func (cmd *PageCommand) Run(args ...string) error {
 		}
 
 		// Print basic page info.
-		fmt.Fprintf(cmd.Stdout, "Page ID:    %d\n", p.id)
-		fmt.Fprintf(cmd.Stdout, "Page Type:  %s\n", p.Type())
-		fmt.Fprintf(cmd.Stdout, "Total Size: %d bytes\n", len(buf))
+		fprintf(cmd.Stdout, "Page ID:    %d\n", p.id)
+		fprintf(cmd.Stdout, "Page Type:  %s\n", p.Type())
+		fprintf(cmd.Stdout, "Total Size: %d bytes\n", len(buf))
 
 		// Print type-specific data.
 		switch p.Type() {
@@ -504,15 +512,15 @@ func (cmd *PageCommand) Run(args ...string) error {
 // PrintMeta prints the data from the meta page.
 func (cmd *PageCommand) PrintMeta(w io.Writer, buf []byte) error {
 	m := (*meta)(unsafe.Pointer(&buf[PageHeaderSize]))
-	fmt.Fprintf(w, "Version:    %d\n", m.version)
-	fmt.Fprintf(w, "Page Size:  %d bytes\n", m.pageSize)
-	fmt.Fprintf(w, "Flags:      %08x\n", m.flags)
-	fmt.Fprintf(w, "Root:       <pgid=%d>\n", m.root.root)
-	fmt.Fprintf(w, "Freelist:   <pgid=%d>\n", m.freelist)
-	fmt.Fprintf(w, "HWM:        <pgid=%d>\n", m.pgid)
-	fmt.Fprintf(w, "Txn ID:     %d\n", m.txid)
-	fmt.Fprintf(w, "Checksum:   %016x\n", m.checksum)
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "Version:    %d\n", m.version)
+	fprintf(w, "Page Size:  %d bytes\n", m.pageSize)
+	fprintf(w, "Flags:      %08x\n", m.flags)
+	fprintf(w, "Root:       <pgid=%d>\n", m.root.root)
+	fprintf(w, "Freelist:   <pgid=%d>\n", m.freelist)
+	fprintf(w, "HWM:        <pgid=%d>\n", m.pgid)
+	fprintf(w, "Txn ID:     %d\n", m.txid)
+	fprintf(w, "Checksum:   %016x\n", m.checksum)
+	fprintf(w, "\n")
 	return nil
 }
 
@@ -521,8 +529,8 @@ func (cmd *PageCommand) PrintLeaf(w io.Writer, buf []byte) error {
 	p := (*page)(unsafe.Pointer(&buf[0]))
 
 	// Print number of items.
-	fmt.Fprintf(w, "Item Count: %d\n", p.count)
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "Item Count: %d\n", p.count)
+	fprintf(w, "\n")
 
 	// Print each key/value.
 	for i := uint16(0); i < p.count; i++ {
@@ -547,9 +555,9 @@ func (cmd *PageCommand) PrintLeaf(w io.Writer, buf []byte) error {
 			v = fmt.Sprintf("%x", string(e.value()))
 		}
 
-		fmt.Fprintf(w, "%s: %s\n", k, v)
+		fprintf(w, "%s: %s\n", k, v)
 	}
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "\n")
 	return nil
 }
 
@@ -558,8 +566,8 @@ func (cmd *PageCommand) PrintBranch(w io.Writer, buf []byte) error {
 	p := (*page)(unsafe.Pointer(&buf[0]))
 
 	// Print number of items.
-	fmt.Fprintf(w, "Item Count: %d\n", p.count)
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "Item Count: %d\n", p.count)
+	fprintf(w, "\n")
 
 	// Print each key/value.
 	for i := uint16(0); i < p.count; i++ {
@@ -573,9 +581,9 @@ func (cmd *PageCommand) PrintBranch(w io.Writer, buf []byte) error {
 			k = fmt.Sprintf("%x", string(e.key()))
 		}
 
-		fmt.Fprintf(w, "%s: <pgid=%d>\n", k, e.pgid)
+		fprintf(w, "%s: <pgid=%d>\n", k, e.pgid)
 	}
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "\n")
 	return nil
 }
 
@@ -584,15 +592,15 @@ func (cmd *PageCommand) PrintFreelist(w io.Writer, buf []byte) error {
 	p := (*page)(unsafe.Pointer(&buf[0]))
 
 	// Print number of items.
-	fmt.Fprintf(w, "Item Count: %d\n", p.count)
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "Item Count: %d\n", p.count)
+	fprintf(w, "\n")
 
 	// Print each page in the freelist.
 	ids := (*[maxAllocSize]pgid)(unsafe.Pointer(&p.ptr))
 	for i := uint16(0); i < p.count; i++ {
-		fmt.Fprintf(w, "%d\n", ids[i])
+		fprintf(w, "%d\n", ids[i])
 	}
-	fmt.Fprintf(w, "\n")
+	fprintf(w, "\n")
 	return nil
 }
 
@@ -615,17 +623,17 @@ func (cmd *PageCommand) PrintPage(w io.Writer, r io.ReaderAt, pageID int, pageSi
 	for offset := 0; offset < pageSize; offset += bytesPerLineN {
 		// Retrieve current 16-byte line.
 		line := buf[offset : offset+bytesPerLineN]
-		isLastLine := (offset == (pageSize - bytesPerLineN))
+		isLastLine := offset == (pageSize - bytesPerLineN)
 
 		// If it's the same as the previous line then print a skip.
 		if bytes.Equal(line, prev) && !isLastLine {
 			if !skipped {
-				fmt.Fprintf(w, "%07x *\n", addr+offset)
+				fprintf(w, "%07x *\n", addr+offset)
 				skipped = true
 			}
 		} else {
 			// Print line as hexadecimal in 2-byte groups.
-			fmt.Fprintf(w, "%07x %04x %04x %04x %04x %04x %04x %04x %04x\n", addr+offset,
+			fprintf(w, "%07x %04x %04x %04x %04x %04x %04x %04x %04x\n", addr+offset,
 				line[0:2], line[2:4], line[4:6], line[6:8],
 				line[8:10], line[10:12], line[12:14], line[14:16],
 			)
@@ -636,7 +644,7 @@ func (cmd *PageCommand) PrintPage(w io.Writer, r io.ReaderAt, pageID int, pageSi
 		// Save the previous line.
 		prev = line
 	}
-	fmt.Fprint(w, "\n")
+	fprintln(w)
 
 	return nil
 }
@@ -674,7 +682,7 @@ func (cmd *PagesCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -694,8 +702,8 @@ func (cmd *PagesCommand) Run(args ...string) error {
 	defer func() { _ = db.Close() }()
 
 	// Write header.
-	fmt.Fprintln(cmd.Stdout, "ID       TYPE       ITEMS  OVRFLW")
-	fmt.Fprintln(cmd.Stdout, "======== ========== ====== ======")
+	fprintln(cmd.Stdout, "ID       TYPE       ITEMS  OVRFLW")
+	fprintln(cmd.Stdout, "======== ========== ====== ======")
 
 	return db.Update(func(tx *bolt.Tx) error {
 		var id int
@@ -717,7 +725,7 @@ func (cmd *PagesCommand) Run(args ...string) error {
 			}
 
 			// Print table row.
-			fmt.Fprintf(cmd.Stdout, "%-8d %-10s %-6s %-6s\n", p.ID, p.Type, count, overflow)
+			fprintf(cmd.Stdout, "%-8d %-10s %-6s %-6s\n", p.ID, p.Type, count, overflow)
 
 			// Move to the next non-overflow page.
 			id += 1
@@ -768,7 +776,7 @@ func (cmd *StatsCommand) Run(args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	} else if *help {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	}
 
@@ -800,44 +808,44 @@ func (cmd *StatsCommand) Run(args ...string) error {
 			return err
 		}
 
-		fmt.Fprintf(cmd.Stdout, "Aggregate statistics for %d buckets\n\n", count)
+		fprintf(cmd.Stdout, "Aggregate statistics for %d buckets\n\n", count)
 
-		fmt.Fprintln(cmd.Stdout, "Page count statistics")
-		fmt.Fprintf(cmd.Stdout, "\tNumber of logical branch pages: %d\n", s.BranchPageN)
-		fmt.Fprintf(cmd.Stdout, "\tNumber of physical branch overflow pages: %d\n", s.BranchOverflowN)
-		fmt.Fprintf(cmd.Stdout, "\tNumber of logical leaf pages: %d\n", s.LeafPageN)
-		fmt.Fprintf(cmd.Stdout, "\tNumber of physical leaf overflow pages: %d\n", s.LeafOverflowN)
+		fprintln(cmd.Stdout, "Page count statistics")
+		fprintf(cmd.Stdout, "\tNumber of logical branch pages: %d\n", s.BranchPageN)
+		fprintf(cmd.Stdout, "\tNumber of physical branch overflow pages: %d\n", s.BranchOverflowN)
+		fprintf(cmd.Stdout, "\tNumber of logical leaf pages: %d\n", s.LeafPageN)
+		fprintf(cmd.Stdout, "\tNumber of physical leaf overflow pages: %d\n", s.LeafOverflowN)
 
-		fmt.Fprintln(cmd.Stdout, "Tree statistics")
-		fmt.Fprintf(cmd.Stdout, "\tNumber of keys/value pairs: %d\n", s.KeyN)
-		fmt.Fprintf(cmd.Stdout, "\tNumber of levels in B+tree: %d\n", s.Depth)
+		fprintln(cmd.Stdout, "Tree statistics")
+		fprintf(cmd.Stdout, "\tNumber of keys/value pairs: %d\n", s.KeyN)
+		fprintf(cmd.Stdout, "\tNumber of levels in B+tree: %d\n", s.Depth)
 
-		fmt.Fprintln(cmd.Stdout, "Page size utilization")
-		fmt.Fprintf(cmd.Stdout, "\tBytes allocated for physical branch pages: %d\n", s.BranchAlloc)
+		fprintln(cmd.Stdout, "Page size utilization")
+		fprintf(cmd.Stdout, "\tBytes allocated for physical branch pages: %d\n", s.BranchAlloc)
 		var percentage int
 		if s.BranchAlloc != 0 {
 			percentage = int(float32(s.BranchInuse) * 100.0 / float32(s.BranchAlloc))
 		}
-		fmt.Fprintf(cmd.Stdout, "\tBytes actually used for branch data: %d (%d%%)\n", s.BranchInuse, percentage)
-		fmt.Fprintf(cmd.Stdout, "\tBytes allocated for physical leaf pages: %d\n", s.LeafAlloc)
+		fprintf(cmd.Stdout, "\tBytes actually used for branch data: %d (%d%%)\n", s.BranchInuse, percentage)
+		fprintf(cmd.Stdout, "\tBytes allocated for physical leaf pages: %d\n", s.LeafAlloc)
 		percentage = 0
 		if s.LeafAlloc != 0 {
 			percentage = int(float32(s.LeafInuse) * 100.0 / float32(s.LeafAlloc))
 		}
-		fmt.Fprintf(cmd.Stdout, "\tBytes actually used for leaf data: %d (%d%%)\n", s.LeafInuse, percentage)
+		fprintf(cmd.Stdout, "\tBytes actually used for leaf data: %d (%d%%)\n", s.LeafInuse, percentage)
 
-		fmt.Fprintln(cmd.Stdout, "Bucket statistics")
-		fmt.Fprintf(cmd.Stdout, "\tTotal number of buckets: %d\n", s.BucketN)
+		fprintln(cmd.Stdout, "Bucket statistics")
+		fprintf(cmd.Stdout, "\tTotal number of buckets: %d\n", s.BucketN)
 		percentage = 0
 		if s.BucketN != 0 {
 			percentage = int(float32(s.InlineBucketN) * 100.0 / float32(s.BucketN))
 		}
-		fmt.Fprintf(cmd.Stdout, "\tTotal number on inlined buckets: %d (%d%%)\n", s.InlineBucketN, percentage)
+		fprintf(cmd.Stdout, "\tTotal number on inlined buckets: %d (%d%%)\n", s.InlineBucketN, percentage)
 		percentage = 0
 		if s.LeafInuse != 0 {
 			percentage = int(float32(s.InlineBucketInuse) * 100.0 / float32(s.LeafInuse))
 		}
-		fmt.Fprintf(cmd.Stdout, "\tBytes used for inlined buckets: %d (%d%%)\n", s.InlineBucketInuse, percentage)
+		fprintf(cmd.Stdout, "\tBytes used for inlined buckets: %d (%d%%)\n", s.InlineBucketInuse, percentage)
 
 		return nil
 	})
@@ -907,7 +915,7 @@ func (cmd *BenchCommand) Run(args ...string) error {
 
 	// Remove path if "-work" is not set. Otherwise keep path.
 	if options.Work {
-		fmt.Fprintf(cmd.Stdout, "work: %s\n", options.Path)
+		fprintf(cmd.Stdout, "work: %s\n", options.Path)
 	} else {
 		defer os.Remove(options.Path)
 	}
@@ -932,9 +940,9 @@ func (cmd *BenchCommand) Run(args ...string) error {
 	}
 
 	// Print results.
-	fmt.Fprintf(os.Stderr, "# Write\t%v\t(%v/op)\t(%v op/sec)\n", results.WriteDuration, results.WriteOpDuration(), results.WriteOpsPerSecond())
-	fmt.Fprintf(os.Stderr, "# Read\t%v\t(%v/op)\t(%v op/sec)\n", results.ReadDuration, results.ReadOpDuration(), results.ReadOpsPerSecond())
-	fmt.Fprintln(os.Stderr, "")
+	fprintf(os.Stderr, "# Write\t%v\t(%v/op)\t(%v op/sec)\n", results.WriteDuration, results.WriteOpDuration(), results.WriteOpsPerSecond())
+	fprintf(os.Stderr, "# Read\t%v\t(%v/op)\t(%v op/sec)\n", results.ReadDuration, results.ReadOpDuration(), results.ReadOpsPerSecond())
+	fprintln(os.Stderr, "")
 	return nil
 }
 
@@ -1222,7 +1230,7 @@ func (cmd *BenchCommand) startProfiling(options *BenchOptions) {
 	if options.CPUProfile != "" {
 		cpuprofile, err = os.Create(options.CPUProfile)
 		if err != nil {
-			fmt.Fprintf(cmd.Stderr, "bench: could not create cpu profile %q: %v\n", options.CPUProfile, err)
+			fprintf(cmd.Stderr, "bench: could not create cpu profile %q: %v\n", options.CPUProfile, err)
 			os.Exit(1)
 		}
 		pprof.StartCPUProfile(cpuprofile)
@@ -1232,7 +1240,7 @@ func (cmd *BenchCommand) startProfiling(options *BenchOptions) {
 	if options.MemProfile != "" {
 		memprofile, err = os.Create(options.MemProfile)
 		if err != nil {
-			fmt.Fprintf(cmd.Stderr, "bench: could not create memory profile %q: %v\n", options.MemProfile, err)
+			fprintf(cmd.Stderr, "bench: could not create memory profile %q: %v\n", options.MemProfile, err)
 			os.Exit(1)
 		}
 		runtime.MemProfileRate = 4096
@@ -1242,7 +1250,7 @@ func (cmd *BenchCommand) startProfiling(options *BenchOptions) {
 	if options.BlockProfile != "" {
 		blockprofile, err = os.Create(options.BlockProfile)
 		if err != nil {
-			fmt.Fprintf(cmd.Stderr, "bench: could not create block profile %q: %v\n", options.BlockProfile, err)
+			fprintf(cmd.Stderr, "bench: could not create block profile %q: %v\n", options.BlockProfile, err)
 			os.Exit(1)
 		}
 		runtime.SetBlockProfileRate(1)
@@ -1562,7 +1570,7 @@ func (cmd *CompactCommand) Run(args ...string) (err error) {
 	fs.StringVar(&cmd.DstPath, "o", "", "")
 	fs.Int64Var(&cmd.TxMaxSize, "tx-max-size", 65536, "")
 	if err := fs.Parse(args); err == flag.ErrHelp {
-		fmt.Fprintln(cmd.Stderr, cmd.Usage())
+		fprintln(cmd.Stderr, cmd.Usage())
 		return ErrUsage
 	} else if err != nil {
 		return err
@@ -1611,7 +1619,7 @@ func (cmd *CompactCommand) Run(args ...string) (err error) {
 	} else if fi.Size() == 0 {
 		return fmt.Errorf("zero db size")
 	}
-	fmt.Fprintf(cmd.Stdout, "%d -> %d bytes (gain=%.2fx)\n", initialSize, fi.Size(), float64(initialSize)/float64(fi.Size()))
+	fprintf(cmd.Stdout, "%d -> %d bytes (gain=%.2fx)\n", initialSize, fi.Size(), float64(initialSize)/float64(fi.Size()))
 
 	return nil
 }

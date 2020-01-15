@@ -461,7 +461,7 @@ func (b *Bucket) Stats() BucketStats {
 
 		// Keep track of maximum page depth.
 		if depth+1 > s.Depth {
-			s.Depth = (depth + 1)
+			s.Depth = depth + 1
 		}
 	})
 
